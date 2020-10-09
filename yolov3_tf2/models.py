@@ -29,7 +29,7 @@ flags.DEFINE_float('yolo_score_threshold', 0.5, 'score threshold')
 
 yolo_anchors = np.array([(10, 13), (16, 30), (33, 23), (30, 61), (62, 45),
                          (59, 119), (116, 90), (156, 198), (373, 326)],
-                        np.float32) / 416
+                        np.float32) / 416                        #大中小三个类别锚点尺度，每个尺度类别用三个三小打框去匹配相关打预测目标
 yolo_anchor_masks = np.array([[6, 7, 8], [3, 4, 5], [0, 1, 2]])
 
 yolo_tiny_anchors = np.array([(10, 14), (23, 27), (37, 58),
@@ -141,7 +141,7 @@ def YoloOutput(filters, anchors, classes, name=None):
     def yolo_output(x_in):
         x = inputs = Input(x_in.shape[1:])
         x = DarknetConv(x, filters * 2, 3)
-        x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False)
+        x = DarknetConv(x, anchors * (classes + 5), 1, batch_norm=False) #5是代表４＋１，其中４代表目标弹框偏移量，１代表label　　grid cell每个cell都有anchors * (classes + 5)目标数据构成
         x = Lambda(lambda x: tf.reshape(x, (-1, tf.shape(x)[1], tf.shape(x)[2],
                                             anchors, classes + 5)))(x)
         return tf.keras.Model(inputs, x, name=name)(x_in)
@@ -204,10 +204,9 @@ def yolo_nms(outputs, anchors, masks, classes):
 def YoloV3(size=None, channels=3, anchors=yolo_anchors,
            masks=yolo_anchor_masks, classes=80, training=False):
     x = inputs = Input([size, size, channels], name='input')
-
     x_36, x_61, x = Darknet(name='yolo_darknet')(x)
 
-    x = YoloConv(512, name='yolo_conv_0')(x)
+    x = YoloConv(512, name='yolo_conv_0')(x)  #x作为
     output_0 = YoloOutput(512, len(masks[0]), classes, name='yolo_output_0')(x)
 
     x = YoloConv(256, name='yolo_conv_1')((x, x_61))

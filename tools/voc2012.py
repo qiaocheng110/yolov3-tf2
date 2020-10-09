@@ -8,19 +8,22 @@ import tensorflow as tf
 import lxml.etree
 import tqdm
 
-flags.DEFINE_string('data_dir', './data/voc2012_raw/VOCdevkit/VOC2012/',
-                    'path to raw PASCAL VOC dataset')
+# flags.DEFINE_string('data_dir', './data/voc2012_raw/VOCdevkit/VOC2012/',
+#                     'path to raw PASCAL VOC dataset')
 flags.DEFINE_enum('split', 'train', [
                   'train', 'val'], 'specify train or val spit')
-flags.DEFINE_string('output_file', './data/voc2012_train.tfrecord', 'outpot dataset')
-flags.DEFINE_string('classes', './data/voc2012.names', 'classes file')
-
+# flags.DEFINE_string('output_file', './data/voc2012_train.tfrecord', 'output dataset')
+# flags.DEFINE_string('classes', './data/voc2012.names', 'classes file')
+flags.DEFINE_string('data_dir', '../data/voc2012_raw/VOCdevkit/VOC2012/',
+                    'path to raw PASCAL VOC dataset')
+flags.DEFINE_string('output_file', '../data/voc2012_train.tfrecord', 'output dataset')
+flags.DEFINE_string('classes', '../data/voc2012.names', 'classes file')
 
 def build_example(annotation, class_map):
     img_path = os.path.join(
-        FLAGS.data_dir, 'JPEGImages', annotation['filename'])
+        FLAGS.data_dir, 'JPEGImages', annotation['filename']) #image的图片地址
     img_raw = open(img_path, 'rb').read()
-    key = hashlib.sha256(img_raw).hexdigest()
+    key = hashlib.sha256(img_raw).hexdigest() #对数据进行加密并转换成十六进制
 
     width = int(annotation['size']['width'])
     height = int(annotation['size']['height'])
@@ -71,14 +74,14 @@ def build_example(annotation, class_map):
     return example
 
 
-def parse_xml(xml):
+def parse_xml(xml):        #xml数据转传承dict字典数据
     if not len(xml):
         return {xml.tag: xml.text}
     result = {}
     for child in xml:
         child_result = parse_xml(child)
         if child.tag != 'object':
-            result[child.tag] = child_result[child.tag]
+            result[child.tag] = child_result[child.tag] #递归获取xml文件中变量的数据，并保存为dict字典模式,设计思路比较复杂
         else:
             if child.tag not in result:
                 result[child.tag] = []
@@ -93,14 +96,14 @@ def main(_argv):
 
     writer = tf.io.TFRecordWriter(FLAGS.output_file)
     image_list = open(os.path.join(
-        FLAGS.data_dir, 'ImageSets', 'Main', '%s.txt' % FLAGS.split)).read().splitlines()
+        FLAGS.data_dir, 'ImageSets', 'Main', '%s.txt' % FLAGS.split)).read().splitlines() #組合train文件打路劲
     logging.info("Image list loaded: %d", len(image_list))
-    for name in tqdm.tqdm(image_list):
+    for name in tqdm.tqdm(image_list):  #tqdm表示进度条
         annotation_xml = os.path.join(
             FLAGS.data_dir, 'Annotations', name + '.xml')
         annotation_xml = lxml.etree.fromstring(open(annotation_xml).read())
-        annotation = parse_xml(annotation_xml)['annotation']
-        tf_example = build_example(annotation, class_map)
+        annotation = parse_xml(annotation_xml)['annotation'] #解析ｘｍｌ文件,转换为｛｝字典形式.
+        tf_example = build_example(annotation, class_map) #传入每个图片打输入annotation信息，以及标签字典
         writer.write(tf_example.SerializeToString())
     writer.close()
     logging.info("Done")

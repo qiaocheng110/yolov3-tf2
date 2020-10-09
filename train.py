@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from absl import app, flags, logging
 from absl.flags import FLAGS
 
@@ -18,12 +20,12 @@ from yolov3_tf2.models import (
 from yolov3_tf2.utils import freeze_all
 import yolov3_tf2.dataset as dataset
 
-flags.DEFINE_string('dataset', '', 'path to dataset')
-flags.DEFINE_string('val_dataset', '', 'path to validation dataset')
+flags.DEFINE_string('dataset', './data/voc2012_train.tfrecord', 'path to dataset')
+flags.DEFINE_string('val_dataset', './data/voc2012_val.tfrecord', 'path to validation dataset')
 flags.DEFINE_boolean('tiny', False, 'yolov3 or yolov3-tiny')
 flags.DEFINE_string('weights', './checkpoints/yolov3.tf',
                     'path to weights file')
-flags.DEFINE_string('classes', './data/coco.names', 'path to classes file')
+flags.DEFINE_string('classes', './data/voc2012.names', 'path to classes file')
 flags.DEFINE_enum('mode', 'fit', ['fit', 'eager_fit', 'eager_tf'],
                   'fit: model.fit, '
                   'eager_fit: model.fit(run_eagerly=True), '
@@ -39,8 +41,8 @@ flags.DEFINE_integer('size', 416, 'image size')
 flags.DEFINE_integer('epochs', 2, 'number of epochs')
 flags.DEFINE_integer('batch_size', 8, 'batch size')
 flags.DEFINE_float('learning_rate', 1e-3, 'learning rate')
-flags.DEFINE_integer('num_classes', 80, 'number of classes in the model')
-flags.DEFINE_integer('weights_num_classes', None, 'specify num class for `weights` file if different, '
+flags.DEFINE_integer('num_classes', 20, 'number of classes in the model')
+flags.DEFINE_integer('weights_num_classes', 80, 'specify num class for `weights` file if different, '
                      'useful in transfer learning with different number of classes')
 
 
@@ -65,10 +67,10 @@ def main(_argv):
     else:
         train_dataset = dataset.load_fake_dataset()
     train_dataset = train_dataset.shuffle(buffer_size=512)
-    train_dataset = train_dataset.batch(FLAGS.batch_size)
+    train_dataset = train_dataset.batch(FLAGS.batch_size)#分割数据集size大小
     train_dataset = train_dataset.map(lambda x, y: (
         dataset.transform_images(x, FLAGS.size),
-        dataset.transform_targets(y, anchors, anchor_masks, FLAGS.size)))
+        dataset.transform_targets(y, anchors, anchor_masks, FLAGS.size))) #transform_targets()将输出数据转换成标准格式打grid cell格式形式的输出
     train_dataset = train_dataset.prefetch(
         buffer_size=tf.data.experimental.AUTOTUNE)
 
@@ -77,12 +79,13 @@ def main(_argv):
             FLAGS.val_dataset, FLAGS.classes, FLAGS.size)
     else:
         val_dataset = dataset.load_fake_dataset()
-    val_dataset = val_dataset.batch(FLAGS.batch_size)
+    val_dataset = val_dataset.batch(FLAGS.batch_size) #分割数据集size大小
     val_dataset = val_dataset.map(lambda x, y: (
         dataset.transform_images(x, FLAGS.size),
-        dataset.transform_targets(y, anchors, anchor_masks, FLAGS.size)))
+        dataset.transform_targets(y, anchors, anchor_masks, FLAGS.size))) #map并不会去立即执行函数，而是表示成一个静态grapth的形式
 
     # Configure the model for transfer learning
+    FLAGS.transfer='darknet'              ###temp variabl
     if FLAGS.transfer == 'none':
         pass  # Nothing to do
     elif FLAGS.transfer in ['darknet', 'no_output']:
